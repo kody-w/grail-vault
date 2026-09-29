@@ -20,6 +20,9 @@ jobs:
       - name: Snapshot the grail (read-only) and gate it
         id: snap
         run: python vault.py snapshot --out docs
+      - name: Ask Software Heritage to archive the grail (permanent, independent of GitHub and of us)
+        continue-on-error: true
+        run: curl -fsS -X POST "https://archive.softwareheritage.org/api/1/origin/save/git/url/https://github.com/kody-w/rapp-installer/" -o /dev/null
       - name: Re-verify every stored copy
         run: python vault.py verify --out docs
       - name: Record it

@@ -34,6 +34,36 @@ from pathlib import Path
 
 GRAIL = os.getenv("GRAIL_REPO_URL", "https://github.com/kody-w/rapp-installer.git")
 BRANCH = "main"
+# Only mirrors that are live. Add https://kodyw.com/grail when its copy step is switched on.
+MIRRORS = ["https://kody-w.github.io/grail-vault"]
+
+
+def write_beacon(out: Path, manifest: dict) -> None:
+    """One machine-readable answer to "where is the last known good kernel, and how do I check it?"
+    Trust comes from the hashes, not from whichever host served the bytes, so any agent can fetch
+    from any copy and verify it without a person in the loop."""
+    name = manifest["name"]
+    beacon = {
+        "schema": "rapp-grail-beacon/1",
+        "what": "The last known good RAPP Brainstem kernel (the grail), with every place to get it and how to verify it.",
+        "kernel": {"version": manifest["version"], "commit": manifest["commit"], "snapshot": name,
+                   "taken_at": manifest["taken_at"],
+                   "sha256": {f: facts["sha256"] for f, facts in manifest["files"].items()}},
+        "get": {
+            "mirrors": [f"{m}/snapshots/{name}/{f}" for m in MIRRORS for f in ("grail.bundle", "grail.tar.gz")],
+            "git": [manifest["source"]],
+            "archives": {"software_heritage": f"swh:1:rev:{manifest['commit']}",
+                         "software_heritage_browse": f"https://archive.softwareheritage.org/swh:1:rev:{manifest['commit']}"},
+        },
+        "verify": "sha256 of the downloaded file must equal kernel.sha256 for that file; the bundle's HEAD must equal kernel.commit",
+        "install": {"command": f"curl -fsSL {MIRRORS[0]}/install.sh | bash",
+                    "pinned": f"curl -fsSL {MIRRORS[0]}/install.sh | VAULT_SNAPSHOT={name} bash",
+                    "notes": "Non-interactive. Runs the snapshot's own installer unchanged after checking its SHA-256."},
+        "gates": [g["detail"] for g in manifest["gates"]],
+    }
+    save(out / "beacon.json", beacon)
+    save(out / ".well-known" / "rapp-grail.json", beacon)
+    (out / ".nojekyll").touch()
 
 
 def run(*cmd, cwd=None, env=None, timeout=900, check=True) -> subprocess.CompletedProcess:
@@ -175,6 +205,7 @@ def snapshot(out: Path) -> int:
         ledger["snapshots"].append({key: manifest[key] for key in ("name", "commit", "version", "taken_at", "known_good")})
         save(out / "ledger.json", ledger)
         if passed:
+            write_beacon(out, manifest)
             save(out / "latest.json", {"name": name, "commit": commit, "version": version,
                                        "manifest": f"snapshots/{name}/manifest.json"})
         print(json.dumps({"name": name, "known_good": passed, "gates": gates}, indent=2))
@@ -199,16 +230,23 @@ def verify(out: Path) -> int:
     if latest and not (out / latest["manifest"]).is_file():
         problems += 1
         print("latest.json points at a missing snapshot")
+    beacon = load(out / "beacon.json", None)
+    if latest and (not beacon or beacon["kernel"]["snapshot"] != latest["name"]):
+        problems += 1
+        print("beacon.json does not name the last known good")
     print(f"{'ok' if not problems else 'PROBLEMS'}: {problems} problem(s)")
     return 1 if problems else 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("command", choices=["snapshot", "verify"])
+    parser.add_argument("command", choices=["snapshot", "verify", "beacon"])
     parser.add_argument("--out", default="docs")
     args = parser.parse_args()
     out = Path(args.out).resolve()
+    if args.command == "beacon":  # rebuild the beacon from the last known good
+        write_beacon(out, load(out / load(out / "latest.json", {})["manifest"], {}))
+        return verify(out)
     return snapshot(out) if args.command == "snapshot" else verify(out)
 
 

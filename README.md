@@ -18,6 +18,13 @@ curl -fsSL https://kody-w.github.io/grail-vault/install.sh | bash
 It downloads the copy from a vault mirror, checks its SHA-256, and runs that copy's own installer, unchanged.
 Pin a specific copy with `VAULT_SNAPSHOT=0.6.16-0e43ee5`. Try a specific mirror first with `VAULT_URL=<url>`.
 
+## For agents
+
+`https://kody-w.github.io/grail-vault/beacon.json` (also at `/.well-known/rapp-grail.json`) is one
+machine-readable answer to "where is the last known good kernel, and how do I check it?": its SHA-256 hashes,
+every place to fetch it, its permanent Software Heritage ID, and a non-interactive install command.
+Trust comes from the hashes, not from whichever host served the bytes.
+
 ## What "known good" means
 
 A copy passes when:
@@ -43,4 +50,5 @@ A copy passes when:
 | Mirror | Status |
 |---|---|
 | https://kody-w.github.io/grail-vault | live |
-| https://kodyw.com/grail | when the site's upload access is configured |
+| https://kodyw.com/grail | not yet |
+| Software Heritage | every known good commit, e.g. `swh:1:rev:0e43ee580e78c150b1c59002456822d2e779388e` |
