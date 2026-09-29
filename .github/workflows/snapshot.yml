@@ -1,0 +1,48 @@
+name: snapshot
+on:
+  schedule:
+    - cron: "23 * * * *"   # hourly: copy any new grail commit, gate it, record it
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+concurrency: snapshot
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KODYW: ${{ secrets.KODYW_SSH_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Snapshot the grail (read-only) and gate it
+        id: snap
+        run: python vault.py snapshot --out docs
+      - name: Re-verify every stored copy
+        run: python vault.py verify --out docs
+      - name: Record it
+        run: |
+          cp install.sh docs/install.sh
+          git config user.name "grail-vault"
+          git config user.email "grail-vault@users.noreply.github.com"
+          git add docs
+          git diff --cached --quiet || { git commit -q -m "vault: $(python -c 'import json;print(json.load(open("docs/ledger.json"))["snapshots"][-1]["name"])')" && git push -q; }
+      - name: Raise the alarm on a grail commit that failed the gates
+        if: steps.snap.outputs.failed != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FAILED: ${{ steps.snap.outputs.failed }}
+        run: |
+          gh issue create --title "Grail commit $FAILED failed the vault gates" \
+            --body "The grail's newest commit ($FAILED) did not pass. Last known good is unchanged: $(cat docs/latest.json). Details: docs/snapshots/$FAILED/manifest.json"
+      - name: Copy the vault to kodyw.com (when access is configured)
+        if: env.HAS_KODYW == 'true'
+        env:
+          KODYW_SSH_KEY: ${{ secrets.KODYW_SSH_KEY }}
+          KODYW_SSH_TARGET: ${{ secrets.KODYW_SSH_TARGET }}
+        run: |
+          install -m 600 /dev/null ~/key && printf '%s\n' "$KODYW_SSH_KEY" > ~/key
+          rsync -a -e "ssh -i ~/key -o StrictHostKeyChecking=accept-new" docs/ "$KODYW_SSH_TARGET"
+          rm -f ~/key

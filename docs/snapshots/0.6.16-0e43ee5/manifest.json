@@ -1,0 +1,36 @@
+{
+  "schema": "grail-vault/1",
+  "name": "0.6.16-0e43ee5",
+  "commit": "0e43ee580e78c150b1c59002456822d2e779388e",
+  "version": "0.6.16",
+  "source": "https://github.com/kody-w/rapp-installer.git",
+  "taken_at": "2026-09-29T17:13:43+00:00",
+  "known_good": true,
+  "gates": [
+    {
+      "gate": "installer",
+      "ok": true,
+      "detail": "install.sh parses"
+    },
+    {
+      "gate": "kernel tests",
+      "ok": true,
+      "detail": "224 passed, 17 subtests passed in 2.17s"
+    },
+    {
+      "gate": "kernel boots",
+      "ok": true,
+      "detail": "kernel 0.6.16 boots; /health and /chat answer"
+    }
+  ],
+  "files": {
+    "grail.bundle": {
+      "sha256": "ca0981b2155d5714934528db97f885853961de10d60c5c86cade537feda935a6",
+      "bytes": 1149442
+    },
+    "grail.tar.gz": {
+      "sha256": "d4a3ef7e2d5d98959eeceef1d0f437be03141f4158ae29fe8e788ad6451b0ab4",
+      "bytes": 355546
+    }
+  }
+}
