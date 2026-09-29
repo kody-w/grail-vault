@@ -34,7 +34,7 @@ from pathlib import Path
 
 GRAIL = os.getenv("GRAIL_REPO_URL", "https://github.com/kody-w/rapp-installer.git")
 BRANCH = "main"
-# Only mirrors that are live. Add https://kodyw.com/grail when its copy step is switched on.
+# Mirrors laid out like docs/ (install.sh reads these). kodyw.com holds a zip instead; see kodyw_copy in the beacon.
 MIRRORS = ["https://kody-w.github.io/grail-vault"]
 
 
@@ -55,6 +55,8 @@ def write_beacon(out: Path, manifest: dict) -> None:
             "archives": {"software_heritage": f"swh:1:rev:{manifest['commit']}",
                          "software_heritage_browse": f"https://archive.softwareheritage.org/swh:1:rev:{manifest['commit']}"},
         },
+        **({"kodyw_copy": {**kodyw, "note": "zip of the same files; send a browser User-Agent, the host refuses some default clients"}}
+           if (kodyw := load(out / "kodyw.json", {})).get("snapshot") == name else {}),
         "verify": "sha256 of the downloaded file must equal kernel.sha256 for that file; the bundle's HEAD must equal kernel.commit",
         "install": {"command": f"curl -fsSL {MIRRORS[0]}/install.sh | bash",
                     "pinned": f"curl -fsSL {MIRRORS[0]}/install.sh | VAULT_SNAPSHOT={name} bash",

@@ -50,5 +50,5 @@ A copy passes when:
 | Mirror | Status |
 |---|---|
 | https://kody-w.github.io/grail-vault | live |
-| https://kodyw.com/grail | not yet |
+| https://kodyw.com/grail | live: one zip per snapshot plus a page with the hashes and the beacon (`publish_kodyw.py`) |
 | Software Heritage | every known good commit, e.g. `swh:1:rev:0e43ee580e78c150b1c59002456822d2e779388e` |

@@ -11,7 +11,7 @@ jobs:
   snapshot:
     runs-on: ubuntu-latest
     env:
-      HAS_KODYW: ${{ secrets.KODYW_SSH_KEY != '' }}
+      HAS_WP: ${{ secrets.WP_APP_PASSWORD != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -40,12 +40,14 @@ jobs:
         run: |
           gh issue create --title "Grail commit $FAILED failed the vault gates" \
             --body "The grail's newest commit ($FAILED) did not pass. Last known good is unchanged: $(cat docs/latest.json). Details: docs/snapshots/$FAILED/manifest.json"
-      - name: Copy the vault to kodyw.com (when access is configured)
-        if: env.HAS_KODYW == 'true'
+      - name: Copy the last known good to kodyw.com/grail
+        if: env.HAS_WP == 'true'
         env:
-          KODYW_SSH_KEY: ${{ secrets.KODYW_SSH_KEY }}
-          KODYW_SSH_TARGET: ${{ secrets.KODYW_SSH_TARGET }}
+          WP_USER: ${{ secrets.WP_USER }}
+          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
         run: |
-          install -m 600 /dev/null ~/key && printf '%s\n' "$KODYW_SSH_KEY" > ~/key
-          rsync -a -e "ssh -i ~/key -o StrictHostKeyChecking=accept-new" docs/ "$KODYW_SSH_TARGET"
-          rm -f ~/key
+          python publish_kodyw.py --out docs
+          python vault.py beacon --out docs
+          python publish_kodyw.py --out docs
+          git add docs
+          git diff --cached --quiet || { git commit -q -m "vault: kodyw.com copy of $(python -c 'import json;print(json.load(open("docs/latest.json"))["name"])')" && git push -q; }
